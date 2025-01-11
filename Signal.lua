@@ -28,9 +28,9 @@ function Signals.new()
 	
 	function signal:Once(func: (any) -> (any))
 		local connection
-		connection = signal:Connect(function()
+		connection = signal:Connect(function(...)
 			connection:Disconnect()
-			func()
+			func(...)
 		end)
 		
 		return connection
