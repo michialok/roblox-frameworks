@@ -2,66 +2,71 @@
 
 local Signals = {}
 
-local renderStepped = game:GetService("RunService").RenderStepped
+local yielder = game:GetService("RunService").Heartbeat
 
 function Signals.new()
-	local self = {}
-	self.__functions = {}
-	self.__index = 0
-	self.__signals = 0
-	self.__waiting = {}
+	local signal = {}
+	signal.__functions = {}
+	signal.__index = 0
+	signal.__signals = 0
+	signal.__waiting = {}
 	
-	function self:Connect(func)
-		self.__signals += 1
+	function signal:Connect(func: (any) -> (any))
+		signal.__signals += 1
 		
-		local index = self.__signals
-		self.__functions[index] = func
+		local index = signal.__signals
+		signal.__functions[index] = func
 		
 		local connection = {}
 		
 		function connection:Disconnect()
-			self.__functions[index] = nil
+			signal.__functions[index] = nil
 		end
 
-		return setmetatable(connection, {__index = self})
+		return connection
 	end
 	
-	function self:Once(func)
+	function signal:Once(func: (any) -> (any))
 		local connection
-		connection = self:Connect(function()
+		connection = signal:Connect(function()
 			connection:Disconnect()
 			func()
 		end)
+		
+		return connection
 	end
 	
-	function self:Fire(...)
-		if self.__waiting[self.__index] then
-			self.__waiting[self.__index] = table.pack(...)
+	function signal:Fire(...)
+		if signal.__waiting[signal.__index] then
+			signal.__waiting[signal.__index] = table.pack(...)
 		end
 		
-		self.__index += 1
+		signal.__index += 1
 
 		local args = table.pack(...)
-		for _, func in self.__functions do
+		for _, func in signal.__functions do
 			task.spawn(func, unpack(args))
 		end
 	end
 
-	function self:Wait()
-		local oldIndex = self.__index
+	function signal:Wait()
+		local oldIndex = signal.__index
+		signal.__waiting[oldIndex] = true
 
 		repeat
-			renderStepped:Wait()
-		until oldIndex ~= self.__index
+			yielder:Wait()
+		until oldIndex ~= signal.__index
 		
-		local args = table.clone(self.__waiting[oldIndex])
+		local args = table.clone(signal.__waiting[oldIndex])
 		
-		self.__waiting[oldIndex] = nil
+		task.defer(function()
+			signal.__waiting[oldIndex] = nil
+		end)
 		
 		return unpack(args)
 	end
 	
-	return self
+	return signal
 end
 
 return Signals
