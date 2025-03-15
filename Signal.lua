@@ -6,21 +6,21 @@ local yielder = game:GetService("RunService").Heartbeat
 
 function Signals.new()
 	local signal = {}
-	signal.__functions = {}
-	signal.__index = 0
-	signal.__signals = 0
-	signal.__waiting = {}
+	signal._functions = {}
+	signal._index = 0
+	signal._signals = 0
+	signal._waiting = {}
 	
 	function signal:Connect(func: (any) -> (any))
-		signal.__signals += 1
+		signal._signals += 1
 		
-		local index = signal.__signals
-		signal.__functions[index] = func
+		local index = signal._signals
+		signal._functions[index] = func
 		
 		local connection = {}
 		
 		function connection:Disconnect()
-			signal.__functions[index] = nil
+			signal._functions[index] = nil
 		end
 
 		return connection
@@ -37,30 +37,30 @@ function Signals.new()
 	end
 	
 	function signal:Fire(...)
-		if signal.__waiting[signal.__index] then
-			signal.__waiting[signal.__index] = table.pack(...)
+		if signal._waiting[signal._index] then
+			signal._waiting[signal._index] = table.pack(...)
 		end
 		
-		signal.__index += 1
+		signal._index += 1
 
 		local args = table.pack(...)
-		for _, func in signal.__functions do
+		for _, func in signal._functions do
 			task.spawn(func, unpack(args))
 		end
 	end
 
 	function signal:Wait()
-		local oldIndex = signal.__index
-		signal.__waiting[oldIndex] = true
+		local oldIndex = signal._index
+		signal._waiting[oldIndex] = true
 
 		repeat
 			yielder:Wait()
-		until oldIndex ~= signal.__index
+		until oldIndex ~= signal._index
 		
-		local args = table.clone(signal.__waiting[oldIndex])
+		local args = table.clone(signal._waiting[oldIndex])
 		
 		task.defer(function()
-			signal.__waiting[oldIndex] = nil
+			signal._waiting[oldIndex] = nil
 		end)
 		
 		return unpack(args)
