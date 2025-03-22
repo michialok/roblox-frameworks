@@ -96,12 +96,10 @@ function remoteFunction.__getObject(remoteEvent: RemoteEvent)
 
 			local results = remoteFunctionObject.__results[currentIndex]
 
-			local unpackedResults = unpack(results or {})
-
 			remoteFunctionObject.__results[currentIndex] = nil
 
 			-- Return response
-			return unpackedResults
+			return unpack(results)
 		end
 	else 
 		-- Client Remote Function Object
@@ -141,12 +139,12 @@ function remoteFunction.__getObject(remoteEvent: RemoteEvent)
 				runService.Heartbeat:Wait()
 			until remoteFunctionObject.__results[currentIndex] or (tick() - begin) >= remoteFunctionObject.timeout
 
-			local unpackedResults = unpack(remoteFunctionObject.__results[currentIndex] or {})
+			local results = remoteFunctionObject.__results[currentIndex] or {}
 
 			remoteFunctionObject.__results[currentIndex] = nil
 
 			-- Return response
-			return unpackedResults
+			return unpack(results)
 		end
 	end
 
