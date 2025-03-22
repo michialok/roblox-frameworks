@@ -35,14 +35,14 @@ if runService:IsServer() then
 			-- Now, go through its open requests
 			for index, isWaitingForPlayer in remoteFunctionObject.__openRequests do
 				if not isWaitingForPlayer then continue end
-				
+
 				-- If the object is still waiting, remove the player from the remote function request and return empty
 				remoteFunctionObject.__openRequests[index] = nil
 				remoteFunctionObject.__results[index] = {}
 			end
 		end
 	end
-	
+
 	game.Players.PlayerRemoving:Connect(playerRemoving)
 end
 
@@ -53,7 +53,7 @@ function remoteFunction.__getObject(remoteEvent: RemoteEvent)
 	remoteFunctionObject.__results = {}
 	remoteFunctionObject.__countIndex = 0
 	remoteFunctionObject.timeout = 15
-	
+
 	local connections = {}
 
 	if runService:IsServer() then
@@ -75,7 +75,7 @@ function remoteFunction.__getObject(remoteEvent: RemoteEvent)
 				remoteFunctionObject.__openRequests[index] = nil
 			end
 		end)
-		
+
 		table.insert(connections, onServerConnection)
 
 		function remoteFunctionObject:invokeClient(player: Player, ...)
@@ -83,30 +83,30 @@ function remoteFunction.__getObject(remoteEvent: RemoteEvent)
 			remoteFunctionObject.__countIndex += 1
 			local currentIndex = remoteFunctionObject.__countIndex
 			remoteFunctionObject.__openRequests[currentIndex] = true -- true = server request
-			
+
 			-- Send client a request with requestId(currentIndex), __REQUESTING__, and given args
 			remoteEvent:FireClient(player, currentIndex, actionTypes.requesting, ...)
 
 			local begin = tick()
-				
+
 			-- Now, we wait for a response or the timeout
 			repeat
 				runService.Heartbeat:Wait()
 			until remoteFunctionObject.__results[currentIndex] or (tick() - begin) >= remoteFunctionObject.timeout
 
 			local results = remoteFunctionObject.__results[currentIndex]
-			
+
 			local unpackedResults = unpack(results or {})
-			
-			remoteFunctionObject.__openRequests[currentIndex] = nil
-			
+
+			remoteFunctionObject.__results[currentIndex] = nil
+
 			-- Return response
 			return unpackedResults
 		end
 	else 
 		-- Client Remote Function Object
 		remoteFunctionObject.onClientInvoke = function() end :: (any) -> (any)
-		
+
 		-- Client receives a request from the server
 		local onClientConnection = remoteEvent.OnClientEvent:Connect(function(index: number, ACTION_TYPE: actionTypes, ...)
 			if ACTION_TYPE == actionTypes.requesting then -- __REQUESTING__
@@ -117,12 +117,12 @@ function remoteFunction.__getObject(remoteEvent: RemoteEvent)
 				-- Server sends response for client invoked by client
 				-- Make sure the open request isn't closed yet
 				if remoteFunctionObject.__openRequests[index] == nil then return end 
-				
+
 				remoteFunctionObject.__results[index] = table.pack(...)
 				remoteFunctionObject.__openRequests[index] = nil
 			end
 		end)
-	
+
 		table.insert(connections, onClientConnection)
 
 		function remoteFunctionObject:invokeServer(...)
@@ -130,40 +130,40 @@ function remoteFunction.__getObject(remoteEvent: RemoteEvent)
 			remoteFunctionObject.__countIndex += 1
 			local currentIndex = remoteFunctionObject.__countIndex
 			remoteFunctionObject.__openRequests[currentIndex] = false -- false = client request
-			
+
 			-- Send server a request with requestId(currentIndex), __REQUESTING__, and given args
 			remoteEvent:FireServer(currentIndex, actionTypes.requesting, ...)
 
 			local begin = tick()
-			
+
 			-- Now, we wait for a response or the timeout
 			repeat
 				runService.Heartbeat:Wait()
 			until remoteFunctionObject.__results[currentIndex] or (tick() - begin) >= remoteFunctionObject.timeout
-			
+
 			local unpackedResults = unpack(remoteFunctionObject.__results[currentIndex] or {})
-			
+
 			remoteFunctionObject.__results[currentIndex] = nil
-			
+
 			-- Return response
 			return unpackedResults
 		end
 	end
-	
+
 	function remoteFunctionObject:Destroy()
 		-- Destroy the remote function object completely
-		
+
 		remoteFunction.allRemoteFunctionObjects[remoteEvent] = nil
-		
+
 		for _, connection in connections do
 			connection:Disconnect()
 		end
-		
+
 		-- Make sure all open requests are properly closed
 		for index in remoteFunctionObject.__results do
 			remoteFunctionObject.__results[index] = {}
 		end
-		
+
 		task.defer(function()
 			-- After all open requests have been closed, now actually destroy the remote function object
 			remoteFunctionObject = nil
@@ -178,7 +178,7 @@ function remoteFunction.new(remoteEvent: RemoteEvent): typeof(remoteFunction.__g
 	if remoteFunction.allRemoteFunctionObjects[remoteEvent] then
 		return remoteFunction.allRemoteFunctionObjects[remoteEvent]
 	end
-	
+
 	-- Return fresh remote function object
 	remoteFunction.allRemoteFunctionObjects[remoteEvent] = remoteFunction.__getObject(remoteEvent)
 
